@@ -1,0 +1,598 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Силовой дневник</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: журнал тренировок — шапка с вкладками, под ней рабочая колонка до 920px; строки упражнений как карточки-строки */
+:root{
+  --bg:#f4f6f3; --surface:#ffffff; --surface-2:#eef1ec; --line:#d9ded6;
+  --fg:#1c231d; --muted:#5f6b61; --accent:#2f6b4f; --accent-soft:#dcebe2;
+  --warn:#a5561c; --warn-soft:#f6e6d8; --done:#2f6b4f;
+  --font-body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-num:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121613; --surface:#1a201b; --surface-2:#222a23; --line:#2f3a31;
+  --fg:#e5ebe5; --muted:#9aa79c; --accent:#7cc39c; --accent-soft:#23382c;
+  --warn:#e3a067; --warn-soft:#3a2a1d; --done:#7cc39c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121613; --surface:#1a201b; --surface-2:#222a23; --line:#2f3a31;
+  --fg:#e5ebe5; --muted:#9aa79c; --accent:#7cc39c; --accent-soft:#23382c;
+  --warn:#e3a067; --warn-soft:#3a2a1d; --done:#7cc39c; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+.wrap{max-width:920px;margin:0 auto}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 10px;border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+h1{font-size:20px;font-weight:700;margin:0 0 2px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:0 0 10px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:999px;padding:6px 14px;font:inherit;font-size:14px;cursor:pointer}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+section{padding-top:16px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+.bar label{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:5px 10px;font-size:13px;color:var(--fg)}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+.note{background:var(--warn-soft);color:var(--fg);border-left:3px solid var(--warn);padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:14px}
+.daynote{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:-4px}
+.daynote[hidden]{display:none}
+.list{display:flex;flex-direction:column;gap:8px}
+.row{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:4px 10px;align-items:start}
+.row.done{border-color:var(--done)}
+.num{font-family:var(--font-num);color:var(--muted);font-size:13px;padding-top:2px}
+.row.done .num{color:var(--done);font-weight:600}
+.name{font-weight:600;min-width:0;display:flex;gap:10px;align-items:center;position:relative}
+.name .nm{min-width:0}
+.thumbbtn{position:relative;flex:none;width:44px;height:44px;padding:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface-2);cursor:zoom-in}
+.thumbbtn img{width:100%;height:100%;object-fit:cover;display:block}
+.thumbbtn .cnt{position:absolute;right:2px;bottom:2px;font:600 10px/1 var(--font-num);background:var(--bg);color:var(--fg);border-radius:4px;padding:2px 3px}
+.peek{position:absolute;left:0;top:52px;z-index:4;width:min(320px,78vw);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 10px 28px rgba(0,0,0,.28);pointer-events:none}
+.peek img{display:block;width:100%;max-height:300px;object-fit:contain;border-radius:8px;background:var(--surface-2)}
+.dots{display:flex;gap:8px;justify-content:center;align-items:center}
+.peek .dots{margin-top:6px}
+.dots i,.dots .dot{width:8px;height:8px;border-radius:50%;background:var(--line);border:none;padding:0}
+.dots .dot{width:10px;height:10px;cursor:pointer}
+.dots i.on,.dots .dot.on{background:var(--accent)}
+.meta{grid-column:2/3;color:var(--muted);font-size:13px;min-width:0}
+.meta b{color:var(--fg);font-weight:500}
+/* поля ввода записи: одна высота --ctl у полей, кнопок и разделителей; подписи — одной строкой одной высоты, по центру своего поля */
+.entry,.perset{--ctl:40px;--cell:68px;--sp:22px}
+.entry{grid-column:3/4;grid-row:1/3;display:flex;align-items:flex-end;gap:6px;font-family:var(--font-num)}
+.fld{display:flex;flex-direction:column;align-items:center;gap:9px}
+.fld .cap{font-family:var(--font-body);font-size:11px;color:var(--muted);line-height:14px;height:14px;white-space:nowrap}
+.hint{font-size:13px;color:var(--muted);margin:-4px 0 12px}
+details.tech{grid-column:2/4;margin-top:4px}
+.cat-row details.tech{grid-column:1/7;margin-top:0}
+details.tech summary{cursor:pointer;font-size:13px;color:var(--accent);font-weight:500;width:max-content;max-width:100%}
+details.tech summary .empty-mark{color:var(--muted);font-weight:400}
+.techtxt{white-space:pre-wrap;font-size:14px;margin-top:6px;padding:8px 10px;background:var(--surface-2);border-radius:8px;overflow-wrap:anywhere}
+details.tech textarea{width:100%;min-height:120px;margin-top:6px;resize:vertical;font-size:14px;line-height:1.45}
+/* поле с цифрой и колонкой стрелок ▲▼ справа: одна рамка, цифра по центру своей зоны */
+.numbox{position:relative;width:var(--cell);height:var(--ctl)}
+.numbox input{width:100%;height:100%;padding:0 calc(var(--sp) + 2px) 0 4px;text-align:center;font-family:var(--font-num);font-size:16px;font-variant-numeric:tabular-nums;-moz-appearance:textfield;appearance:textfield}
+.numbox input::-webkit-inner-spin-button,.numbox input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.spin{position:absolute;top:1px;right:1px;bottom:1px;width:var(--sp);display:flex;flex-direction:column;border-left:1px solid var(--line);border-radius:0 7px 7px 0;overflow:hidden}
+.spin button{flex:1;display:flex;align-items:center;justify-content:center;border:none;background:none;color:var(--muted);padding:0;cursor:pointer}
+.spin button+button{border-top:1px solid var(--line)}
+.spin button:hover{background:var(--surface-2);color:var(--fg)}
+.spin button:active{background:var(--accent-soft);color:var(--accent)}
+.spin svg{width:10px;height:6px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.numbox input:disabled+.spin{display:none}
+.entry .x{height:var(--ctl);display:flex;align-items:center;color:var(--muted);font-size:14px}
+.clr{height:var(--ctl);width:28px;display:inline-flex;align-items:center;justify-content:center;border:none;background:none;color:var(--muted);font-size:18px;padding:0;line-height:1}
+.perbtn,.perset .btn{height:var(--ctl);min-width:var(--ctl);display:inline-flex;align-items:center;justify-content:center;padding:0 10px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);border-radius:8px;font-size:15px;line-height:1}
+.perbtn{width:var(--cell);padding:0;font-family:var(--font-num);font-size:17px}
+.tot{height:var(--ctl);display:inline-flex;align-items:center;gap:4px;font-family:var(--font-body);font-size:13px;color:var(--muted);white-space:nowrap}
+.tot b{color:var(--fg);font-weight:600;font-family:var(--font-num)}
+.perset{grid-column:2/4;display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end;font-family:var(--font-num);margin-top:2px}
+@media (max-width:520px){.row{grid-template-columns:24px minmax(0,1fr)}.entry{grid-column:2/3;grid-row:auto;margin-top:6px}.perset{grid-column:2/3}}
+.status{font-size:12px;color:var(--muted);margin-top:10px;min-height:16px}
+.empty{color:var(--muted);padding:20px;text-align:center;border:1px dashed var(--line);border-radius:var(--r)}
+h2{font-size:16px;margin:22px 0 10px}
+h2:first-child{margin-top:4px}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{color:var(--muted);font-weight:500;background:var(--surface-2)}
+td.n{font-family:var(--font-num);font-variant-numeric:tabular-nums;text-align:right}
+.pct{display:inline-block;min-width:44px;text-align:center;border-radius:6px;padding:1px 6px;font-family:var(--font-num)}
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;overflow-x:auto}
+.chart svg{display:block;max-width:100%;height:auto}
+.chart text{fill:var(--muted);font-family:var(--font-num);font-size:11px}
+.cat-day{margin-bottom:18px}
+.donebtn{height:40px;padding:0 16px;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);border-radius:8px;font-size:14px;white-space:nowrap}
+.donebtn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+.catsearch input{flex:1;min-width:0;max-width:480px;height:40px}
+.cat-row.fresh{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);transition:box-shadow .6s,border-color .6s}
+.cat-row{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-bottom:8px}
+.cat-row input,.cat-row select{width:100%;min-width:0;font-size:13px}
+.cat-row .f-name{grid-column:1/7}.cat-row .f-days{grid-column:1/7;display:flex;gap:4px;flex-wrap:wrap}
+.f-days .chip{padding:3px 9px;font-size:12px}
+.cat-row .f-block{grid-column:1/3}.cat-row .f-target{grid-column:3/5}.cat-row .f-note{grid-column:5/7}
+.cat-actions{grid-column:1/7;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line);background:var(--surface-2);color:var(--fg);border-radius:8px;padding:5px 10px;font-size:13px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
+.btn.danger{color:var(--warn)}
+.cat-row .f-photos{grid-column:1/7;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-start}
+.ph{display:flex;flex-direction:column;gap:4px;align-items:center}
+.phimg{position:relative;width:76px;height:76px;padding:0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface-2);cursor:zoom-in}
+.phimg img{width:100%;height:100%;object-fit:cover;display:block}
+.phn{position:absolute;left:4px;top:4px;font:600 11px/1 var(--font-num);background:var(--bg);color:var(--fg);border-radius:4px;padding:2px 4px}
+.phctl{display:flex;gap:3px}
+.phctl .btn{padding:2px 7px;font-size:12px;line-height:1.4}
+.phadd{width:76px;height:76px;border:1px dashed var(--line);border-radius:8px;background:none;color:var(--muted);font-size:12px;line-height:1.3;padding:4px}
+.phadd b{display:block;font-size:20px;font-weight:400;color:var(--accent)}
+@media (max-width:560px){.cat-row .f-name,.cat-row .f-days,.cat-row .f-block,.cat-row .f-target,.cat-row .f-note{grid-column:1/7}}
+dialog{border:none;border-radius:14px;padding:0;width:min(94vw,640px);max-width:min(94vw,640px);background:var(--surface);color:var(--fg)}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog .cap{padding:10px 14px;display:flex;gap:10px;align-items:center;font-weight:600}
+#photocap{flex:1;min-width:0}
+#photocount{color:var(--muted);font-weight:500;font-family:var(--font-num);font-size:13px;white-space:nowrap}
+.stage{position:relative;background:var(--surface-2);display:flex;align-items:center;justify-content:center;min-height:220px;touch-action:pan-y}
+.stage img{display:block;max-width:100%;max-height:72vh;margin:0 auto;user-select:none;-webkit-user-drag:none}
+.nav{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:24px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0 0 3px}
+.nav.prev{left:10px}.nav.next{right:10px}
+#photodots{padding:12px 0 14px}
+.legend{font-size:12px;color:var(--muted);margin-top:6px}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>Силовой дневник</h1>
+  <p class="sub" id="sub">Подходы × повторы по дням. Подключаюсь к базе…</p>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-today" aria-selected="true">Тренировка</button>
+    <button class="tab" role="tab" id="t-progress" aria-selected="false">Прогресс</button>
+    <button class="tab" role="tab" id="t-catalog" aria-selected="false">Каталог</button>
+  </div>
+</header>
+
+<section id="v-today">
+  <div class="bar">
+    <label>Дата <input type="date" id="date" autocomplete="off"></label>
+    <button class="btn" id="gotoday" hidden>Сегодня</button>
+    <div class="chips" id="daychips"></div>
+  </div>
+  <div class="note daynote" id="daynote" hidden></div>
+  <p class="hint">Справа в каждой строке: <b>подходы × повторы в одном подходе</b>. Если в подходах разное число повторов — кнопка <b>≠</b>: своё поле на каждый подход, пустой подход не считается. Для удержаний вместо повторов пиши секунды, для pogo — число контактов. Серым показано значение прошлого раза.</p>
+  <div class="note" id="pausenote" hidden></div>
+  <div class="list" id="todaylist"><div class="empty">Загружаю упражнения…</div></div>
+  <div class="status" id="status"></div>
+</section>
+
+<section id="v-progress" hidden>
+  <h2>Выполнение по неделям</h2>
+  <div class="tblwrap"><table id="weeks"></table></div>
+  <p class="legend">Доля упражнений дня, по которым есть запись.</p>
+  <h2>Объём по блокам, повторы за неделю</h2>
+  <div class="tblwrap"><table id="blocks"></table></div>
+  <h2>Упражнение</h2>
+  <div class="bar"><select id="exsel" aria-label="Упражнение"></select></div>
+  <div class="chart" id="exchart"></div>
+  <div class="tblwrap" style="margin-top:8px"><table id="exhist"></table></div>
+</section>
+
+<section id="v-catalog" hidden>
+  <div class="bar"><button class="btn primary" id="addex">Добавить упражнение</button><span class="legend" id="catnote"></span></div>
+  <div class="bar catsearch"><input type="search" id="catq" placeholder="Поиск: название, блок, цель, заметка…" autocomplete="off" aria-label="Поиск упражнения"><span class="legend" id="catcount"></span></div>
+  <div id="catalog"></div>
+</section>
+</div>
+
+<dialog id="photo"><div class="cap"><span id="photocap"></span><span id="photocount"></span><button class="btn" id="photoclose">Закрыть</button></div>
+  <div class="stage" id="photostage"><img id="photoimg" alt=""><button class="nav prev" id="photoprev" aria-label="Предыдущее фото">‹</button><button class="nav next" id="photonext" aria-label="Следующее фото">›</button></div>
+  <div class="dots" id="photodots"></div>
+</dialog>
+<input type="file" id="filepick" accept="image/*" multiple hidden>
+
+<script>
+const DAYS=[["mon","Пн"],["tue","Вт"],["wed","Ср"],["thu","Чт"],["fri","Пт"],["sat","Сб"],["sun","Вс"]];
+const DAYNAME=Object.fromEntries(DAYS);
+const DAYIDX=Object.fromEntries(DAYS.map(([k],i)=>[k,i]));
+const WD=["sun","mon","tue","wed","thu","fri","sat"];
+const LEGACY={daily:["mon","tue","wed","thu","fri"],run:["wed","fri","sun"]};
+const $=id=>document.getElementById(id);
+let db=null, assets=null, canWrite=true;
+let exercises=[]; // [{id,...}]
+let logs={};      // date -> {entries:{exId:{sets,reps}}}
+let curDay=null, curDate=todayISO(), curTab="today";
+
+function todayISO(){const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function parseISO(s){const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}
+function fmt(s){const d=parseISO(s);return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0")}
+/* ключи журнала в базе: ДД-ММ-ГГГГ (с 03.11.2026); внутри страницы — ГГГГ-ММ-ДД */
+function toISOkey(s){s=String(s||"");let m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(m)return s;m=s.match(/^(\d{2})[.\-](\d{2})[.\-](\d{4})$/);return m?m[3]+"-"+m[2]+"-"+m[1]:null}
+function dbKey(iso){return iso.slice(8,10)+"-"+iso.slice(5,7)+"-"+iso.slice(0,4)}
+function dmyDot(iso){return iso.slice(8,10)+"."+iso.slice(5,7)+"."+iso.slice(0,4)}
+function monday(s){const d=parseISO(s);const wd=(d.getDay()+6)%7;d.setDate(d.getDate()-wd);return isoOf(d)}
+function isoOf(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function addDays(s,n){const d=parseISO(s);d.setDate(d.getDate()+n);return isoOf(d)}
+function el(tag,attrs={},...kids){const e=document.createElement(tag);for(const[k,v]of Object.entries(attrs)){if(k==="text")e.textContent=v;else if(k.startsWith("on"))e.addEventListener(k.slice(2),v);else if(v!==null&&v!==undefined&&v!==false)e.setAttribute(k,v===true?"":v)}for(const k of kids)if(k!=null)e.append(k);return e}
+function setStatus(t){$("status").textContent=t}
+function daysOf(e){if(Array.isArray(e.days))return e.days.filter(d=>d in DAYIDX).sort((a,b)=>DAYIDX[a]-DAYIDX[b]);if(LEGACY[e.day])return LEGACY[e.day];return e.day in DAYIDX?[e.day]:[]}
+function exOfDay(day){return exercises.filter(e=>e.active!==false&&daysOf(e).includes(day)).sort((a,b)=>(a.order??0)-(b.order??0))}
+function daysLabel(ds){if(!ds.length)return "Без дня";const ix=ds.map(d=>DAYIDX[d]);const run=ix.every((v,i)=>i===0||v===ix[i-1]+1);return run&&ds.length>=3?DAYNAME[ds[0]]+"–"+DAYNAME[ds[ds.length-1]]:ds.map(d=>DAYNAME[d]).join(" · ")}
+/* упражнения, сгруппированные по одинаковому набору дней (для каталога и выбора в прогрессе) */
+function groups(){const m=new Map();for(const e of exercises){if(e.active===false)continue;const ds=daysOf(e);const k=ds.join(",");if(!m.has(k))m.set(k,{key:k,days:ds,items:[]});m.get(k).items.push(e)}
+  const arr=[...m.values()];arr.forEach(g=>g.items.sort((a,b)=>(a.order??0)-(b.order??0)));
+  arr.sort((a,b)=>(a.days.length?DAYIDX[a.days[0]]:99)-(b.days.length?DAYIDX[b.days[0]]:99)||b.days.length-a.days.length);return arr}
+/* запись упражнения: {sets, reps} — одинаковые подходы (прежний формат, не меняется);
+   {sets, reps, perSet:[…]} — разные: perSet главный, sets = его длина, reps = округлённое среднее для старых читателей */
+function perOf(en){return Array.isArray(en?.perSet)&&en.perSet.length?en.perSet.map(Number):null}
+function vol(en){const p=perOf(en);return p?p.reduce((a,b)=>a+(Number.isFinite(b)?b:0),0):(Number(en?.sets)||0)*(Number(en?.reps)||0)}
+function fmtEn(en){const p=perOf(en);return p?p.join(" / "):en.sets+"×"+en.reps}
+function packPer(arr){const v=arr.filter(x=>x!==""&&x!=null).map(Number).filter(n=>Number.isFinite(n)&&n>=0);if(!v.length)return null;
+  if(v.every(x=>x===v[0]))return {sets:v.length,reps:v[0]};
+  return {sets:v.length,reps:Math.round(v.reduce((a,b)=>a+b,0)/v.length),perSet:v}}
+
+/* ---------- tabs ---------- */
+for(const t of ["today","progress","catalog"]){
+  $("t-"+t).addEventListener("click",()=>{curTab=t;for(const u of ["today","progress","catalog"]){$("t-"+u).setAttribute("aria-selected",u===t);$("v-"+u).hidden=u!==t}render()});
+}
+
+/* ---------- today ---------- */
+/* дата — единственный источник дня недели: при открытии, перезагрузке и смене суток — сегодня и его день;
+   при выборе даты — её день; чип другого дня — временный просмотр, сбрасывается сменой даты или суток */
+let lastToday=curDate;
+function setDate(d){curDate=d||todayISO();curDay=null;$("date").value=curDate;render()}
+function onDatePick(e){const v=e.target.value;if(!v){$("date").value=curDate;return}if(v!==curDate)setDate(v)}
+$("date").value=curDate;
+$("date").addEventListener("input",onDatePick);
+$("date").addEventListener("change",onDatePick);
+$("gotoday").addEventListener("click",()=>setDate(todayISO()));
+function syncToday(){
+  const t=todayISO();
+  if(t!==lastToday){
+    if(document.activeElement?.closest?.(".entry,.perset"))return; /* не перебивать ввод; следующая проверка через минуту */
+    lastToday=t;setDate(t);scheduleMidnight();return}
+  if($("date").value!==curDate)$("date").value=curDate;
+  $("gotoday").hidden=curDate===t;
+}
+let midT=null;
+function scheduleMidnight(){clearTimeout(midT);const n=new Date();const m=new Date(n.getFullYear(),n.getMonth(),n.getDate()+1,0,0,5);midT=setTimeout(syncToday,m-n)}
+scheduleMidnight();
+setInterval(syncToday,60000);
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)syncToday()});
+window.addEventListener("pageshow",syncToday);
+window.addEventListener("focus",syncToday);
+window.addEventListener("load",syncToday);
+function defaultDay(dateStr){return WD[parseISO(dateStr).getDay()]}
+function lastEntry(exId,beforeDate){const ds=Object.keys(logs).filter(d=>d<beforeDate&&logs[d].entries?.[exId]).sort();const d=ds[ds.length-1];return d?{date:d,...logs[d].entries[exId]}:null}
+
+function renderToday(){
+  hidePeek();
+  if(!curDay)curDay=defaultDay(curDate);
+  const chips=$("daychips");chips.replaceChildren();
+  for(const[k,n]of DAYS){chips.append(el("button",{class:"chip","aria-pressed":String(k===curDay),onclick:()=>{curDay=k;renderToday()},text:n}))}
+  if($("date").value!==curDate)$("date").value=curDate;
+  $("gotoday").hidden=curDate===todayISO();
+  const real=defaultDay(curDate),dn=$("daynote");
+  if(curDay!==real){dn.hidden=false;dn.replaceChildren(el("span",{text:fmt(curDate)+" — "+DAYNAME[real]+", открыт список «"+DAYNAME[curDay]+"». Записи сохраняются на "+fmt(curDate)+"."}),el("button",{class:"btn",text:"Вернуть "+DAYNAME[real],onclick:()=>{curDay=real;renderToday()}}))}
+  else{dn.hidden=true;dn.replaceChildren()}
+  const list=$("todaylist");list.replaceChildren();
+  const items=exOfDay(curDay);
+  if(!exercises.length){list.append(el("div",{class:"empty",text:db?"Каталог пуст. Упражнения добавляются во вкладке «Каталог».":"База недоступна в этом окне."}));return}
+  if(!items.length){list.append(el("div",{class:"empty",text:"Для «"+DAYNAME[curDay]+"» упражнений пока нет — добавь их в каталоге."}));return}
+  const entries=logs[curDate]?.entries||{};
+  items.forEach((ex,i)=>{
+    const en=entries[ex.id];const last=lastEntry(ex.id,curDate);
+    const key=curDate+"|"+ex.id;const enPer=perOf(en);
+    const perMode=!!enPer||perOpen.has(key);
+    let entryBox,perBox=null;
+    if(ex.mode==="check"){
+      /* упражнение-отметка: без подходов и повторов; в журнал пишется {sets:1,reps:1}, как и раньше */
+      const done=!!en;
+      const b=el("button",{class:"donebtn","aria-pressed":String(done),title:done?"Снять отметку":"Отметить выполнение",onclick:()=>putEntry(ex.id,done?null:{sets:1,reps:1})},done?"✓ Выполнено":"Выполнено");
+      b.disabled=!canWrite;
+      entryBox=el("div",{class:"entry"},b);
+    }else if(!perMode){
+      const sets=el("input",{type:"number",min:"0",inputmode:"numeric","aria-label":"Подходы: "+ex.name,placeholder:last?String(last.sets):"—",value:en?String(en.sets):""});
+      const reps=el("input",{type:"number",min:"0",inputmode:"numeric","aria-label":"Повторы: "+ex.name,placeholder:last?String(last.reps):"—",value:en?String(en.reps):""});
+      const onCh=redraw=>{const s=sets.value===""?null:Number(sets.value),r=reps.value===""?null:Number(reps.value);if(s==null&&r==null){putEntry(ex.id,null,redraw)}else if(s!=null&&r!=null){putEntry(ex.id,{sets:s,reps:r},redraw)}};
+      for(const x of [sets,reps]){x.addEventListener("input",()=>onCh(false));x.addEventListener("change",()=>onCh(true))}
+      if(!canWrite){sets.disabled=true;reps.disabled=true}
+      const toPer=el("button",{class:"perbtn",title:"Разное число повторов в подходах","aria-label":"Повторы по подходам: "+ex.name,text:"≠",onclick:()=>{
+        const n=Math.max(1,Number(sets.value)||0),r=reps.value;
+        perDraft[key]=sets.value!==""&&r!==""?Array(n).fill(r):Array(Math.max(1,Number(sets.value)||Number(last?.sets)||3)).fill("");
+        perOpen.add(key);renderToday();
+        const first=[...document.querySelectorAll('.perset[data-key="'+CSS.escape(key)+'"] input')].find(x=>x.value==="")||document.querySelector('.perset[data-key="'+CSS.escape(key)+'"] input');first?.focus()}});
+      const clr=el("button",{class:"clr",title:"Очистить запись","aria-label":"Очистить запись","onclick":()=>{sets.value="";reps.value="";putEntry(ex.id,null)},text:"×"});
+      entryBox=el("div",{class:"entry"},el("label",{class:"fld",title:"Сколько подходов"},el("span",{class:"cap",text:"подходы"}),numBox(sets)),el("span",{class:"x",text:"×"}),el("label",{class:"fld",title:"Повторов в одном подходе (или секунд, или контактов)"},el("span",{class:"cap",text:"повторы"}),numBox(reps)),canWrite?el("span",{class:"fld"},el("span",{class:"cap",text:"разные"}),toPer):null,canWrite?clr:null);
+    }else{
+      perOpen.add(key); /* строка остаётся в режиме по подходам, даже если значения выровнялись при вводе */
+      if(!perDraft[key])perDraft[key]=enPer?enPer.map(String):en?Array(Math.max(1,Number(en.sets)||0)).fill(String(en.reps)):Array(Math.max(1,Number(last?.sets)||3)).fill("");
+      const draft=perDraft[key];
+      const lastPer=last?(perOf(last)||Array(Number(last.sets)||0).fill(last.reps)):[];
+      const tot=el("span",{class:"tot"});
+      const showTot=v=>{tot.replaceChildren(...(v?[el("b",{text:String(v.sets)})," подх · всего ",el("b",{text:String(vol(v))})]:["не записано"]))};
+      showTot(en||null);
+      const commit=redraw=>{const v=packPer(draft);showTot(v);putEntry(ex.id,v,redraw)};
+      perBox=el("div",{class:"perset","data-key":key});
+      draft.forEach((v,j)=>{
+        const inp=el("input",{type:"number",min:"0",inputmode:"numeric","aria-label":"Подход "+(j+1)+": "+ex.name,placeholder:lastPer[j]!=null?String(lastPer[j]):"—",value:v});
+        inp.disabled=!canWrite;
+        inp.addEventListener("input",()=>{draft[j]=inp.value;commit(false)});
+        inp.addEventListener("change",()=>{draft[j]=inp.value;commit(true)});
+        perBox.append(el("label",{class:"fld"},el("span",{class:"cap",text:"П"+(j+1)}),numBox(inp)));
+      });
+      if(canWrite){
+        perBox.append(el("button",{class:"btn",title:"Добавить подход","aria-label":"Добавить подход: "+ex.name,text:"+",onclick:()=>{
+          const prev=[...draft].reverse().find(x=>x!=="")??"";draft.push(prev);commit(true);
+          const ins=document.querySelectorAll('.perset[data-key="'+CSS.escape(key)+'"] input');ins[ins.length-1]?.focus()}}));
+        if(draft.length>1)perBox.append(el("button",{class:"btn",title:"Убрать последний подход","aria-label":"Убрать последний подход: "+ex.name,text:"−",onclick:()=>{draft.pop();commit(true)}}));
+        const v=packPer(draft);
+        if(!v||!v.perSet)perBox.append(el("button",{class:"btn",title:"Вернуть ввод «подходы × повторы»",text:"одинаково",onclick:()=>{perOpen.delete(key);delete perDraft[key];renderToday()}}));
+      }
+      const clr=el("button",{class:"clr",title:"Очистить запись","aria-label":"Очистить запись","onclick":()=>{perOpen.delete(key);delete perDraft[key];putEntry(ex.id,null)},text:"×"});
+      entryBox=el("div",{class:"entry"},tot,canWrite?clr:null);
+    }
+    const phs=photosOf(ex);let thumb=null;
+    if(phs.length){
+      thumb=el("button",{class:"thumbbtn",title:"Фото упражнения","aria-label":"Фото: "+ex.name+(phs.length>1?" ("+phs.length+")":""),onclick:()=>{hidePeek();openCarousel(ex,0)},onmouseenter:e=>showPeek(e.currentTarget,ex),onmouseleave:hidePeek},
+        el("img",{src:blobURL(phs[0]),alt:"",loading:"lazy",onerror:e=>e.currentTarget.remove()}),phs.length>1?el("span",{class:"cnt",text:String(phs.length)}):null);
+    }
+    const nameEl=el("span",{class:"nm",text:ex.name});
+    const meta=el("div",{class:"meta"});
+    const parts=[];if(ex.block)parts.push(ex.block);if(ex.target)parts.push("цель: "+ex.target);
+    meta.append(parts.join(" · "));
+    if(last){meta.append(el("br"),"прошлый раз: ",el("b",{text:ex.mode==="check"?"выполнено":fmtEn(last)})," ("+fmt(last.date)+")")}
+    if(ex.note){meta.append(el("br"),ex.note)}
+    let tech=null;
+    if(ex.technique){tech=el("details",{class:"tech",open:openTech.has("t:"+ex.id)},el("summary",{text:"Техника выполнения"}),el("div",{class:"techtxt",text:ex.technique}));tech.addEventListener("toggle",()=>{tech.open?openTech.add("t:"+ex.id):openTech.delete("t:"+ex.id)})}
+    list.append(el("div",{class:"row"+(en?" done":"")},
+      el("div",{class:"num",text:en?"✓":String(i+1)}),
+      el("div",{class:"name"},thumb,nameEl),
+      entryBox,
+      meta,perBox,tech));
+  });
+}
+const openTech=new Set();
+/* поле числа со стрелками: ▲▼ — шаг 1 (пустое поле берёт значение прошлого раза, иначе 1 / 0);
+   колесо мыши меняет значение, когда курсор в поле (как у системного поля); стрелки клавиатуры — штатно */
+const CHEV='<svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 5 5 1l4 4"/></svg>',CHEVD='<svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg>';
+function numBox(input){
+  const step=d=>{const ph=Number(input.placeholder);let v;
+    if(input.value===""){v=input.placeholder!==""&&Number.isFinite(ph)?ph:(d>0?1:0)}else{v=Math.max(0,(Number(input.value)||0)+d)}
+    input.value=String(v);input.dispatchEvent(new Event("input",{bubbles:true}))};
+  const btn=(d,svg,lbl)=>{const b=el("button",{type:"button",tabindex:"-1","aria-label":lbl+": "+(input.getAttribute("aria-label")||"")});b.innerHTML=svg;
+    b.addEventListener("click",e=>{e.preventDefault();step(d);input.dispatchEvent(new Event("change",{bubbles:true}))});return b};
+  let acc=0;
+  const box=el("span",{class:"numbox"},input,el("span",{class:"spin"},btn(1,CHEV,"Больше"),btn(-1,CHEVD,"Меньше")));
+  box.addEventListener("wheel",e=>{if(document.activeElement!==input||input.disabled)return;e.preventDefault();acc+=e.deltaY;
+    if(Math.abs(acc)>=40||e.deltaMode){step(acc<0?1:-1);acc=0;input.dataset.dirty="1"}},{passive:false});
+  input.addEventListener("blur",()=>{if(input.dataset.dirty){delete input.dataset.dirty;input.dispatchEvent(new Event("change",{bubbles:true}))}});
+  return box}
+const perOpen=new Set(), perDraft={}; /* ввод по подходам: открытые строки и черновики полей (дата|упражнение) */
+
+/* writes to log/<ДД-ММ-ГГГГ>: one queued write at a time */
+const pending={};let writing=Promise.resolve();
+function putEntry(exId,val,redraw=true){
+  const cur=structuredClone(logs[curDate]||{date:curDate,entries:{}});cur.entries=cur.entries||{};
+  if(val)cur.entries[exId]=val;else delete cur.entries[exId];
+  logs[curDate]=cur;pending[curDate]=cur;if(redraw)renderToday();scheduleFlush();
+}
+/* закрыл приложение или ушёл со вкладки — сохранить сразу, не ждать паузы */
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&Object.keys(pending).length){clearTimeout(flushT);writing=writing.then(flush)}});
+window.addEventListener("pagehide",()=>{if(Object.keys(pending).length){clearTimeout(flushT);writing=writing.then(flush)}});
+let flushT=null;
+function scheduleFlush(){clearTimeout(flushT);flushT=setTimeout(()=>{writing=writing.then(flush)},500)}
+async function flush(){
+  const dates=Object.keys(pending);
+  for(const d of dates){const body=pending[d];delete pending[d];
+    try{setStatus("Сохраняю…");
+      if(Object.keys(body.entries).length)await db.doc("log/"+dbKey(d)).set({date:dmyDot(d),entries:body.entries,updatedAt:new Date().toISOString()});
+      else await db.doc("log/"+dbKey(d)).delete();
+      setStatus("Сохранено "+new Date().toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"}));
+    }catch(e){
+      handleWriteErr(e);
+      /* временный сбой — вернуть в очередь и повторить; более новый ввод того же дня не затирать */
+      if(canWrite&&e?.code!=="quota_exceeded"){if(!pending[d])pending[d]=body;setTimeout(scheduleFlush,5000)}
+    }}
+}
+function handleWriteErr(e){
+  if(e?.code==="invalid_argument"){canWrite=false;setStatus("Нет прав на запись — страница в режиме чтения.");render();return}
+  if(e?.code==="quota_exceeded"){setStatus("База заполнена: удали старые записи.");return}
+  setStatus("Не сохранилось ("+(e?.code||"ошибка")+"). Повторю через 5 с — не закрывай страницу.");
+}
+
+/* ---------- progress ---------- */
+function renderProgress(){
+  const all=Object.keys(logs).sort();
+  const today=todayISO();
+  const startW=monday(addDays(today,-7*7));
+  const weeks=[];for(let w=monday(today);w>=startW;w=addDays(w,-7))weeks.push(w);
+  // weeks table
+  const wt=$("weeks");wt.replaceChildren();
+  const dayCols=DAYS.filter(([k])=>exOfDay(k).length).map(([k])=>[k,DAYIDX[k]]);
+  wt.append(el("thead",{},el("tr",{},el("th",{text:"Неделя"}),...dayCols.map(([k])=>el("th",{text:DAYNAME[k]})),el("th",{text:"Повторы"}))));
+  const tb=el("tbody");
+  for(const w of weeks){
+    const tr=el("tr",{},el("td",{text:fmt(w)+"–"+fmt(addDays(w,6))}));
+    let total=0;for(let i=0;i<7;i++){const e=logs[addDays(w,i)]?.entries;if(e)for(const v of Object.values(e))total+=vol(v)}
+    for(const[k,off]of dayCols){
+      const d=addDays(w,off);const set=exOfDay(k);const e=logs[d]?.entries||{};
+      const n=set.filter(x=>e[x.id]).length;const p=set.length?Math.round(100*n/set.length):0;
+      const span=el("span",{class:"pct",text:d>today||!set.length?"—":p+"%"});
+      if(d<=today&&set.length){span.style.background=p>=80?"var(--accent-soft)":p>0?"var(--warn-soft)":"transparent"}
+      tr.append(el("td",{},span));
+    }
+    tr.append(el("td",{class:"n",text:total?String(total):"—"}));tb.append(tr);
+  }
+  wt.append(tb);
+  // blocks table (last 6 weeks)
+  const bw=weeks.slice(0,6).reverse();
+  const byBlock={};const exMap=Object.fromEntries(exercises.map(e=>[e.id,e]));
+  for(const d of all){const w=monday(d);if(!bw.includes(w))continue;for(const[id,v]of Object.entries(logs[d].entries||{})){const b=exMap[id]?.block||"Без блока";byBlock[b]=byBlock[b]||{};byBlock[b][w]=(byBlock[b][w]||0)+vol(v)}}
+  const bt=$("blocks");bt.replaceChildren();
+  bt.append(el("thead",{},el("tr",{},el("th",{text:"Блок"}),...bw.map(w=>el("th",{text:fmt(w)})))));
+  const bb=el("tbody");const names=Object.keys(byBlock).sort();
+  if(!names.length)bb.append(el("tr",{},el("td",{colspan:String(bw.length+1),text:"Записей пока нет — появятся после первой тренировки."})));
+  for(const b of names)bb.append(el("tr",{},el("td",{text:b}),...bw.map(w=>el("td",{class:"n",text:byBlock[b][w]?String(byBlock[b][w]):"—"}))));
+  bt.append(bb);
+  // exercise select
+  const sel=$("exsel");const prev=sel.value;sel.replaceChildren();
+  for(const gr of groups()){const g=el("optgroup",{label:daysLabel(gr.days)});gr.items.forEach(x=>g.append(el("option",{value:x.id,text:x.name})));sel.append(g)}
+  if(prev&&exMap[prev])sel.value=prev;
+  renderExercise(sel.value);
+}
+$("exsel").addEventListener("change",e=>renderExercise(e.target.value));
+function renderExercise(id){
+  const hist=Object.keys(logs).sort().filter(d=>logs[d].entries?.[id]).map(d=>({d,...logs[d].entries[id]}));
+  const box=$("exchart");box.replaceChildren();
+  const ht=$("exhist");ht.replaceChildren();
+  if(!hist.length){box.append(el("div",{class:"empty",text:"По этому упражнению записей ещё нет."}));return}
+  const data=hist.slice(-24);const W=Math.max(320,data.length*34+60),H=180,pl=40,pr=10,pt=12,pb=28;
+  const max=Math.max(...data.map(v=>vol(v)))||1;const nice=Math.ceil(max/10)*10||10;
+  const bw=(W-pl-pr)/data.length;
+  const NS="http://www.w3.org/2000/svg";const svg=document.createElementNS(NS,"svg");svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.setAttribute("width",W);svg.setAttribute("role","img");svg.setAttribute("aria-label","Повторы за тренировку");
+  const mk=(t,a)=>{const e=document.createElementNS(NS,t);for(const[k,v]of Object.entries(a))e.setAttribute(k,v);return e};
+  for(let i=0;i<=4;i++){const y=pt+(H-pt-pb)*(1-i/4);svg.append(mk("line",{x1:pl,x2:W-pr,y1:y,y2:y,stroke:"var(--line)","stroke-width":"1"}));const t=mk("text",{x:pl-6,y:y+4,"text-anchor":"end"});t.textContent=String(Math.round(nice*i/4));svg.append(t)}
+  data.forEach((v,i)=>{const h=(H-pt-pb)*vol(v)/nice;const x=pl+i*bw+bw*.18;const r=mk("rect",{x,y:H-pb-h,width:bw*.64,height:Math.max(h,1),rx:"3",fill:i===data.length-1?"var(--accent)":"var(--accent-soft)",stroke:"var(--accent)","stroke-width":"1"});const tt=document.createElementNS(NS,"title");tt.textContent=fmt(v.d)+": "+fmtEn(v);r.append(tt);svg.append(r);
+    if(data.length<=14||i%2===data.length%2){const t=mk("text",{x:x+bw*.32,y:H-pb+16,"text-anchor":"middle"});t.textContent=fmt(v.d);svg.append(t)}});
+  box.append(svg);
+  ht.append(el("thead",{},el("tr",{},el("th",{text:"Дата"}),el("th",{text:"Подходы × повторы"}),el("th",{text:"Всего"}))));
+  const tb=el("tbody");hist.slice().reverse().forEach(v=>tb.append(el("tr",{},el("td",{text:fmt(v.d)+"."+v.d.slice(0,4)}),el("td",{class:"n",text:fmtEn(v)}),el("td",{class:"n",text:String(vol(v))}))));ht.append(tb);
+}
+
+/* ---------- catalog ---------- */
+const exWrite={};
+function updEx(id,patch){const ex=exercises.find(e=>e.id===id);if(ex)Object.assign(ex,patch);exWrite[id]=(exWrite[id]||Promise.resolve()).then(async()=>{try{await db.doc("exercises/"+id).update(patch);setStatus("Сохранено")}catch(e){handleWriteErr(e)}})}
+/* поиск в каталоге: все слова запроса, без учёта регистра и ё/е */
+function normQ(s){return String(s||"").toLowerCase().replace(/ё/g,"е").replace(/\s+/g," ").trim()}
+$("catq").addEventListener("input",()=>renderCatalog());
+$("catq").addEventListener("keydown",e=>{if(e.key==="Escape"){$("catq").value="";renderCatalog()}});
+function renderCatalog(){
+  const box=$("catalog");box.replaceChildren();
+  $("catnote").textContent=canWrite?"Изменения сохраняются сразу.":"Только чтение.";
+  $("addex").hidden=!canWrite;
+  const q=normQ($("catq").value);const words=q?q.split(" "):[];let shown=0,total=0;
+  for(const gr of groups()){
+    total+=gr.items.length;
+    const items=words.length?gr.items.filter(ex=>{const hay=normQ([ex.name,ex.block,ex.target,ex.note,ex.technique,daysLabel(daysOf(ex))].join(" "));return words.every(w=>hay.includes(w))}):gr.items;
+    if(!items.length)continue;shown+=items.length;
+    const wrap=el("div",{class:"cat-day"},el("h2",{text:daysLabel(gr.days)+" · "+items.length}));
+    items.forEach((ex,i)=>{
+      const inp=(cls,field,ph)=>{const x=el("input",{class:cls,value:ex[field]||"",placeholder:ph,"aria-label":ph});x.disabled=!canWrite;x.addEventListener("change",()=>updEx(ex.id,{[field]:x.value.trim()}));return x};
+      const daySel=el("div",{class:"f-days",role:"group","aria-label":"Дни недели: "+ex.name});
+      const curDs=daysOf(ex);
+      for(const[k,n]of DAYS){const on=curDs.includes(k);const b=el("button",{class:"chip","aria-pressed":String(on),title:on?"Убрать из дня "+n:"Добавить в день "+n,text:n});b.disabled=!canWrite;
+        b.addEventListener("click",()=>{let ds=daysOf(ex);if(ds.includes(k)){if(ds.length===1){setStatus("Нужен хотя бы один день");return}ds=ds.filter(d=>d!==k)}else ds=[...ds,k];ds.sort((a,c)=>DAYIDX[a]-DAYIDX[c]);updEx(ex.id,{days:ds});renderCatalog()});
+        daySel.append(b)}
+      const acts=el("div",{class:"cat-actions"});
+      if(canWrite){
+        acts.append(el("button",{class:"btn",text:"↑",title:"Выше","aria-label":"Выше",onclick:()=>move(ex,-1)}),el("button",{class:"btn",text:"↓",title:"Ниже","aria-label":"Ниже",onclick:()=>move(ex,1)}));
+        acts.append(el("button",{class:"chip","aria-pressed":String(ex.mode==="check"),title:"На «Тренировке» вместо подходов и повторов — одна кнопка «Выполнено»",onclick:()=>{updEx(ex.id,{mode:ex.mode==="check"?"sets":"check"});renderCatalog()}},"Только «Выполнено»"));
+        acts.append(el("button",{class:"btn danger",text:"Удалить",onclick:e=>confirmDel(e.currentTarget,ex)}));
+      }
+      /* фото: до 3, порядок = фазы движения; первое — значок на вкладке «Тренировка» */
+      const phs=photosOf(ex);let strip=null;
+      if(phs.length||(canWrite&&assets)){
+        strip=el("div",{class:"f-photos",role:"group","aria-label":"Фото: "+ex.name});
+        phs.forEach((id,j)=>{
+          const fig=el("div",{class:"ph"},el("button",{class:"phimg",title:"Открыть","aria-label":"Фото "+(j+1)+": "+ex.name,onclick:()=>openCarousel(ex,j)},el("img",{src:blobURL(id),alt:"",loading:"lazy",onerror:e=>e.currentTarget.remove()}),el("span",{class:"phn",text:String(j+1)})));
+          if(canWrite){
+            const ctl=el("div",{class:"phctl"},
+              el("button",{class:"btn",text:"←",title:"Раньше","aria-label":"Фото "+(j+1)+" раньше",disabled:j===0,onclick:()=>{const a=phs.slice();[a[j-1],a[j]]=[a[j],a[j-1]];setPhotos(ex,a)}}),
+              el("button",{class:"btn",text:"→",title:"Позже","aria-label":"Фото "+(j+1)+" позже",disabled:j===phs.length-1,onclick:()=>{const a=phs.slice();[a[j+1],a[j]]=[a[j],a[j+1]];setPhotos(ex,a)}}),
+              el("button",{class:"btn danger",text:"✕",title:"Убрать фото","aria-label":"Убрать фото "+(j+1),onclick:e=>{const b=e.currentTarget;if(b.dataset.armed){setPhotos(ex,phs.filter((_,k)=>k!==j));return}b.dataset.armed="1";b.textContent="Убрать?";setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent="✕"}},4000)}}));
+            fig.append(ctl);
+          }
+          strip.append(fig);
+        });
+        if(canWrite&&assets&&phs.length<MAXPH)strip.append(el("button",{class:"phadd",title:"Добавить фото (до "+MAXPH+")",onclick:()=>pickPhoto(ex)},el("b",{text:"+"}),phs.length?"ещё фото":"фото"));
+      }
+      const ta=el("textarea",{id:"tech-"+ex.id,rows:"6",placeholder:"Исходное положение, движение, темп, на что смотреть, частые ошибки…","aria-label":"Техника выполнения: "+ex.name});ta.value=ex.technique||"";ta.disabled=!canWrite;
+      ta.addEventListener("change",()=>{const v=ta.value.replace(/\s+$/,"");updEx(ex.id,{technique:v});sumMark.textContent=v?"":" — пусто"});
+      const sumMark=el("span",{class:"empty-mark",text:ex.technique?"":" — пусто"});
+      const det=el("details",{class:"tech",open:openTech.has("c:"+ex.id)},el("summary",{},"Техника выполнения",sumMark),ta);
+      det.addEventListener("toggle",()=>{det.open?openTech.add("c:"+ex.id):openTech.delete("c:"+ex.id)});
+      wrap.append(el("div",{class:"cat-row","data-id":ex.id},inp("f-name","name","Название"),daySel,inp("f-block","block","Блок"),inp("f-target","target","Целевая дозировка"),inp("f-note","note","Примечание"),det,strip,acts));
+    });
+    box.append(wrap);
+  }
+  $("catcount").textContent=words.length?"Найдено: "+shown+" из "+total:"";
+  if(words.length&&!shown)box.append(el("div",{class:"empty",text:"Ничего не найдено по «"+$("catq").value.trim()+"». Esc — очистить поиск."}));
+}
+function move(ex,dir){const key=daysOf(ex).join(",");const items=groups().find(g=>g.key===key)?.items||[];const i=items.findIndex(e=>e.id===ex.id);const j=i+dir;if(j<0||j>=items.length)return;const other=items[j];const a=ex.order??i,b=other.order??j;updEx(ex.id,{order:b});updEx(other.id,{order:a===b?a+dir*-1:a});renderCatalog()}
+function confirmDel(btn,ex){if(btn.dataset.armed){db.doc("exercises/"+ex.id).delete().catch(handleWriteErr);exercises=exercises.filter(e=>e.id!==ex.id);renderCatalog();return}btn.dataset.armed="1";btn.textContent="Точно удалить?";setTimeout(()=>{if(btn.isConnected){delete btn.dataset.armed;btn.textContent="Удалить"}},4000)}
+$("addex").addEventListener("click",async()=>{const day=curDay||"mon";const last=exOfDay(day).reduce((m,e)=>Math.max(m,e.order??0),0);const ref=db.collection("exercises").doc();const body={days:[day],order:last+1,name:"Новое упражнение",block:"",target:"",note:"",photo:null,photos:[],active:true};exercises.push({id:ref.id,...body});renderCatalog();
+  /* новая карточка — в конце группы своего дня: прокрутить к ней, подсветить, курсор в название */
+  const row=document.querySelector('.cat-row[data-id="'+CSS.escape(ref.id)+'"]');
+  if(row){row.classList.add("fresh");row.scrollIntoView({block:"center",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});const n=row.querySelector(".f-name");n?.focus({preventScroll:true});n?.select();setTimeout(()=>row.classList.remove("fresh"),4000)}
+  setStatus("Добавлено в «"+DAYNAME[day]+"»: впиши название, дни меняются чипами.");
+  try{await ref.set(body)}catch(e){handleWriteErr(e)}});
+/* ---------- фото упражнений ---------- */
+/* exercises/{id}.photos — массив id ассетов (до 3); photo = photos[0] для совместимости.
+   Старые записи с одним photo читаются как [photo]. */
+const MAXPH=3;
+function blobURL(id){return "/_blob/"+id}
+function photosOf(ex){let a=Array.isArray(ex?.photos)?ex.photos.filter(x=>typeof x==="string"&&x):[];if(ex?.photo&&!a.includes(ex.photo))a=[ex.photo,...a];return a.slice(0,MAXPH)}
+function setPhotos(ex,arr){updEx(ex.id,{photos:arr,photo:arr[0]||null});render()}
+let photoFor=null;
+function pickPhoto(ex){photoFor=ex.id;$("filepick").value="";$("filepick").click()}
+/* JPEG до 1600 px: принимается хранилищем (HEIC — нет), быстро грузится на телефоне */
+async function prepImage(f){
+  try{const bmp=await createImageBitmap(f,{imageOrientation:"from-image"});
+    const s=Math.min(1,1600/Math.max(bmp.width,bmp.height));const c=document.createElement("canvas");
+    c.width=Math.max(1,Math.round(bmp.width*s));c.height=Math.max(1,Math.round(bmp.height*s));
+    const g=c.getContext("2d");g.fillStyle="#fff";g.fillRect(0,0,c.width,c.height);g.drawImage(bmp,0,0,c.width,c.height);bmp.close?.();
+    const b=await new Promise(r=>c.toBlob(r,"image/jpeg",.86));if(b&&b.size)return b}catch(e){}
+  return f}
+$("filepick").addEventListener("change",async e=>{
+  const files=[...(e.target.files||[])];const ex=exercises.find(x=>x.id===photoFor);if(!files.length||!ex)return;
+  const ids=photosOf(ex);const room=MAXPH-ids.length;const take=files.slice(0,room);let ok=0;
+  for(let k=0;k<take.length;k++){
+    setStatus("Загружаю фото "+(k+1)+" из "+take.length+"…");
+    try{const b=await prepImage(take[k]);const r=await assets.upload(b,b.type?{}:{type:"image/jpeg"});ids.push(r.id);ok++;setPhotos(ex,ids.slice())}
+    catch(err){setStatus(err?.code==="too_large"?"Фото больше 20 МБ.":err?.code==="unsupported_type"?"Формат не поддерживается — сохрани фото как JPEG или PNG.":err?.code==="quota_or_state"?"Хранилище фото заполнено.":"Фото не загрузилось ("+(err?.code||"ошибка")+").");return}
+  }
+  setStatus(ok+" фото добавлено"+(files.length>room?" — больше "+MAXPH+" на упражнение не помещается":""));
+});
+/* карусель */
+const car={ids:[],i:0,name:""};
+function openCarousel(ex,i=0){const ids=photosOf(ex);if(!ids.length)return;car.ids=ids;car.name=ex.name;$("photocap").textContent=ex.name;showCar(i);if(!$("photo").open)$("photo").showModal()}
+function showCar(i){const n=car.ids.length;car.i=((i%n)+n)%n;const img=$("photoimg");img.src=blobURL(car.ids[car.i]);img.alt=car.name+" — фото "+(car.i+1)+" из "+n;
+  $("photocount").textContent=n>1?(car.i+1)+" / "+n:"";$("photoprev").hidden=$("photonext").hidden=$("photodots").hidden=n<2;
+  $("photodots").replaceChildren(...car.ids.map((_,j)=>el("button",{class:"dot"+(j===car.i?" on":""),"aria-label":"Фото "+(j+1),"aria-current":j===car.i?"true":null,onclick:()=>showCar(j)})))}
+$("photoprev").addEventListener("click",()=>showCar(car.i-1));
+$("photonext").addEventListener("click",()=>showCar(car.i+1));
+$("photo").addEventListener("keydown",e=>{if(e.key==="ArrowLeft"){showCar(car.i-1);e.preventDefault()}else if(e.key==="ArrowRight"){showCar(car.i+1);e.preventDefault()}});
+let swX=null;
+$("photostage").addEventListener("pointerdown",e=>{swX=e.clientX});
+$("photostage").addEventListener("pointerup",e=>{if(swX==null)return;const dx=e.clientX-swX;swX=null;if(Math.abs(dx)>40&&car.ids.length>1)showCar(car.i+(dx<0?1:-1))});
+$("photoclose").addEventListener("click",()=>$("photo").close());
+$("photo").addEventListener("click",e=>{if(e.target===$("photo"))$("photo").close()});
+/* увеличение при наведении (мышь): крупный просмотр с перелистыванием */
+const canHover=matchMedia("(hover:hover) and (pointer:fine)"),calm=matchMedia("(prefers-reduced-motion: reduce)");
+let peekT=null,peekEl=null;
+function showPeek(anchor,ex){hidePeek();if(!canHover.matches)return;const ids=photosOf(ex);if(!ids.length)return;let i=0;
+  const img=el("img",{src:blobURL(ids[0]),alt:""});const dots=ids.length>1?el("div",{class:"dots"},...ids.map((_,j)=>el("i",{class:j?"":"on"}))):null;
+  peekEl=el("div",{class:"peek","aria-hidden":"true"},img,dots);anchor.closest(".name").append(peekEl);
+  if(ids.length>1&&!calm.matches)peekT=setInterval(()=>{i=(i+1)%ids.length;img.src=blobURL(ids[i]);[...dots.children].forEach((d,j)=>d.className=j===i?"on":"")},1300)}
+function hidePeek(){clearInterval(peekT);peekT=null;peekEl?.remove();peekEl=null}
+
+/* ---------- render + boot ---------- */
+function render(){if(curTab==="today")renderToday();else if(curTab==="progress")renderProgress();else renderCatalog()}
+render();
+(async()=>{
+  const C=window.claude;
+  db=C?await C.use("db"):null;
+  if(!db){$("sub").textContent="База недоступна в этом окне — открой страницу в Claude, войдя в аккаунт.";render();return}
+  const user=await C.use("user");
+  const w=user?await user.can("data.write"):null; if(w===false)canWrite=false;
+  assets=await C.use("assets");
+  $("sub").textContent="Подходы × повторы по дням. Записи сохраняются сразу.";
+  db.collection("exercises").onSnapshot(s=>{exercises=s.docs.map(d=>({id:d.id,...d.data()}));if(document.activeElement?.closest?.(".cat-row")&&curTab==="catalog")return;render()},e=>setStatus("Каталог не загрузился ("+e.code+")"));
+  db.collection("log").onSnapshot(s=>{const n={};s.docs.forEach(d=>{const k=toISOkey(d.id);if(!k)return;if(n[k]&&d.id===k)return;const v=d.data();if(v)n[k]=v});for(const d of Object.keys(pending))n[d]=pending[d];logs=n;if(document.activeElement?.closest?.(".entry,.perset"))return;render()},e=>setStatus("Журнал не загрузился ("+e.code+")"));
+})();
+</script>
+
+</body></html>
