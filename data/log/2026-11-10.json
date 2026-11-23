@@ -1,0 +1,27 @@
+{
+ "data": {
+  "date": "10.11.2026",
+  "entries": {
+   "daily-01": {
+    "reps": 1,
+    "sets": 1
+   },
+   "tue-01": {
+    "reps": 12,
+    "sets": 4
+   },
+   "tue-08": {
+    "reps": 12,
+    "sets": 1
+   },
+   "txubjj0aei5ru71r5h6m": {
+    "reps": 7,
+    "sets": 1
+   }
+  },
+  "updatedAt": "2026-11-10T12:30:16.228Z"
+ },
+ "id": "10-11-2026",
+ "updatedAt": "2026-11-10T12:30:16.566847Z",
+ "version": 10
+}

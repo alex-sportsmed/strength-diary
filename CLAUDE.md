@@ -13,7 +13,7 @@
 - `diary.html` — **полный** документ страницы (`<!doctype html>…<body>` + тело + `</body></html>`). Единственный источник кода.
 - `data/exercises.json` — выгрузка коллекции `exercises` (массив `{id,data,version,updatedAt}`, по `id`).
 - `data/log/ГГГГ-ММ-ДД.json` — выгрузка одного дня коллекции `log` (имя файла — ISO-дата; `id` документа в формате `ДД-ММ-ГГГГ` внутри).
-- `tools/verify_export.py` — проверка выгрузки.
+- `tools/jsonl_to_data.py` — раскладка построчного вывода db_list в `data/`; `tools/verify_export.py` — проверка выгрузки.
 
 ## Правка и публикация кода
 1. `get_artifact(slug)` → сверить `version` с `.published-version`. Если отличается — страницу правили вне репозитория: `read_artifact`, свести различия в `diary.html`, только потом править.
@@ -30,8 +30,8 @@
 
 ## Выгрузка базы (по расписанию и по запросу)
 1. `db_list(slug,"exercises",limit=1000)` и `db_list(slug,"log",limit=1000)`; если `nextCursor` не пуст — дочитать.
-2. Записать `data/exercises.json` и по файлу на день в `data/log/` **дословно** (не переформулировать тексты, не «чинить» данные; сортировка по `id`; JSON `ensure_ascii=False`, отступ 1).
-3. `python3 tools/verify_export.py --exercises N --log M` (N, M — `count` из db_list). Расхождение — не коммитить, разобраться.
+2. Построчно, **дословно**, скопировать документы из ответа (строки внутри `<untrusted-document-…>`, без тега) в два временных файла вне репозитория: `/home/claude/raw/exercises.jsonl` и `/home/claude/raw/log.jsonl` (не переформулировать тексты, не «чинить» данные). Затем `python3 -I tools/jsonl_to_data.py /home/claude/raw/exercises.jsonl /home/claude/raw/log.jsonl` — он сам раскладывает `data/exercises.json` и `data/log/ГГГГ-ММ-ДД.json` (сортировка по `id`, `ensure_ascii=False`, отступ 1, ключи по алфавиту).
+3. `python3 -I tools/verify_export.py --exercises N --log M` (N, M — `count` из db_list). Расхождение — не коммитить, разобраться. Дополнительно: число упражнений с непустым `technique` и число id фото совпадают с ответом db_list.
 4. Нет изменений (`git diff --quiet`) → ничего не коммитить. Иначе коммит `export: ГГГГ-ММ-ДД, N упр., M дней` и push.
 5. Документы с `tooLarge` (данных нет) — не выдумывать, перечислить в сообщении коммита.
 
