@@ -55,7 +55,7 @@ for f in files:
     if data.get("date") != f"{dn}.{m}.{y}":
         err.append(f"{f.name}: data.date={data.get('date')}")
     for eid, en in data.get("entries", {}).items():
-        if eid not in known:
+        if eid not in known and not eid.startswith("adhoc-"):
             warn.append(f"{f.name}: упражнение {eid} нет в каталоге (удалено?)")
         if not isinstance(en.get("sets"), (int, float)) or not isinstance(en.get("reps"), (int, float)):
             err.append(f"{f.name}/{eid}: sets/reps не числа")

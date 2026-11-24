@@ -142,6 +142,15 @@ dialog .cap{padding:10px 14px;display:flex;gap:10px;align-items:center;font-weig
 .nav.prev{left:10px}.nav.next{right:10px}
 #photodots{padding:12px 0 14px}
 .legend{font-size:12px;color:var(--muted);margin-top:6px}
+.extrahd{font-size:13px;color:var(--muted);margin:10px 0 0;padding-top:4px}
+#addbox{margin-top:12px}
+.addpanel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:10px}
+.addpanel input{width:100%;height:40px}
+.pick{max-height:320px;overflow-y:auto;margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.pick button{flex:none;text-align:left;border:1px solid var(--line);background:var(--surface-2);color:var(--fg);border-radius:8px;padding:8px 10px;min-height:40px}
+.pick button small{display:block;color:var(--muted);font-size:12px}
+.pick button.custom{border-style:dashed;color:var(--accent);font-weight:600}
+.addpanel .acts{margin-top:8px}
 </style>
 
 <div class="wrap">
@@ -162,9 +171,10 @@ dialog .cap{padding:10px 14px;display:flex;gap:10px;align-items:center;font-weig
     <div class="chips" id="daychips"></div>
   </div>
   <div class="note daynote" id="daynote" hidden></div>
-  <p class="hint">Справа в каждой строке: <b>подходы × повторы в одном подходе</b>. Если в подходах разное число повторов — кнопка <b>≠</b>: своё поле на каждый подход, пустой подход не считается. Для удержаний вместо повторов пиши секунды, для pogo — число контактов. Серым показано значение прошлого раза.</p>
+  <p class="hint">Справа в каждой строке: <b>подходы × повторы в одном подходе</b>. Если в подходах разное число повторов — кнопка <b>≠</b>: своё поле на каждый подход, пустой подход не считается. Для удержаний вместо повторов пиши секунды, для pogo — число контактов. Серым показано значение прошлого раза. Кнопка <b>«+ Упражнение вне плана»</b> под списком — разово добавить на эту дату упражнение из каталога или своё.</p>
   <div class="note" id="pausenote" hidden></div>
   <div class="list" id="todaylist"><div class="empty">Загружаю упражнения…</div></div>
+  <div id="addbox"></div>
   <div class="status" id="status"></div>
 </section>
 
@@ -242,7 +252,7 @@ for(const t of ["today","progress","catalog"]){
 /* дата — единственный источник дня недели: при открытии, перезагрузке и смене суток — сегодня и его день;
    при выборе даты — её день; чип другого дня — временный просмотр, сбрасывается сменой даты или суток */
 let lastToday=curDate;
-function setDate(d){curDate=d||todayISO();curDay=null;$("date").value=curDate;render()}
+function setDate(d){curDate=d||todayISO();curDay=null;addOpen=false;$("date").value=curDate;render()}
 function onDatePick(e){const v=e.target.value;if(!v){$("date").value=curDate;return}if(v!==curDate)setDate(v)}
 $("date").value=curDate;
 $("date").addEventListener("input",onDatePick);
@@ -251,7 +261,7 @@ $("gotoday").addEventListener("click",()=>setDate(todayISO()));
 function syncToday(){
   const t=todayISO();
   if(t!==lastToday){
-    if(document.activeElement?.closest?.(".entry,.perset"))return; /* не перебивать ввод; следующая проверка через минуту */
+    if(document.activeElement?.closest?.(".entry,.perset,.addpanel"))return; /* не перебивать ввод; следующая проверка через минуту */
     lastToday=t;setDate(t);scheduleMidnight();return}
   if($("date").value!==curDate)$("date").value=curDate;
   $("gotoday").hidden=curDate===t;
@@ -279,10 +289,11 @@ function renderToday(){
   else{dn.hidden=true;dn.replaceChildren()}
   const list=$("todaylist");list.replaceChildren();
   const items=exOfDay(curDay);
-  if(!exercises.length){list.append(el("div",{class:"empty",text:db?"Каталог пуст. Упражнения добавляются во вкладке «Каталог».":"База недоступна в этом окне."}));return}
-  if(!items.length){list.append(el("div",{class:"empty",text:"Для «"+DAYNAME[curDay]+"» упражнений пока нет — добавь их в каталоге."}));return}
+  if(!exercises.length){list.append(el("div",{class:"empty",text:db?"Каталог пуст. Упражнения добавляются во вкладке «Каталог».":"База недоступна в этом окне."}));if(!db){$("addbox").replaceChildren();return}}
+  else if(!items.length){list.append(el("div",{class:"empty",text:"Для «"+DAYNAME[curDay]+"» упражнений пока нет — добавь их в каталоге или добавь одно вне плана кнопкой ниже."}))}
   const entries=logs[curDate]?.entries||{};
-  items.forEach((ex,i)=>{
+  const planned=new Set([...exOfDay(real),...items].map(e=>e.id));
+  const addRow=(ex,i,extra)=>{
     const en=entries[ex.id];const last=lastEntry(ex.id,curDate);
     const key=curDate+"|"+ex.id;const enPer=perOf(en);
     const perMode=!!enPer||perOpen.has(key);
@@ -341,18 +352,64 @@ function renderToday(){
     }
     const nameEl=el("span",{class:"nm",text:ex.name});
     const meta=el("div",{class:"meta"});
-    const parts=[];if(ex.block)parts.push(ex.block);if(ex.target)parts.push("цель: "+ex.target);
+    const parts=[];if(extra)parts.push(ex.adhoc?"не из библиотеки":"вне плана");if(ex.block)parts.push(ex.block);if(ex.target)parts.push("цель: "+ex.target);
     meta.append(parts.join(" · "));
     if(last){meta.append(el("br"),"прошлый раз: ",el("b",{text:ex.mode==="check"?"выполнено":fmtEn(last)})," ("+fmt(last.date)+")")}
     if(ex.note){meta.append(el("br"),ex.note)}
     let tech=null;
     if(ex.technique){tech=el("details",{class:"tech",open:openTech.has("t:"+ex.id)},el("summary",{text:"Техника выполнения"}),el("div",{class:"techtxt",text:ex.technique}));tech.addEventListener("toggle",()=>{tech.open?openTech.add("t:"+ex.id):openTech.delete("t:"+ex.id)})}
-    list.append(el("div",{class:"row"+(en?" done":"")},
+    if(extra&&canWrite){
+      const rm=el("button",{class:"btn danger",type:"button",text:"Убрать из дня",onclick:e=>{const b=e.currentTarget;
+        if(entries[ex.id]&&!b.dataset.armed){b.dataset.armed="1";b.textContent="Запись удалится — убрать?";setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent="Убрать из дня"}},4000);return}
+        removeExtra(ex)}});
+      meta.append(el("br"),rm)}
+    list.append(el("div",{class:"row"+(en?" done":""),"data-id":ex.id},
       el("div",{class:"num",text:en?"✓":String(i+1)}),
       el("div",{class:"name"},thumb,nameEl),
       entryBox,
       meta,perBox,tech));
-  });
+  };
+  items.forEach((ex,i)=>addRow(ex,i,false));
+  const xs=extraList(curDate,planned);
+  if(xs.length){list.append(el("div",{class:"extrahd",text:"Вне плана на "+fmt(curDate)}));xs.forEach((ex,i)=>addRow(ex,items.length+i,true))}
+  renderAddBox(new Set([...planned,...xs.map(x=>x.id)]));
+}
+/* вне плана: упражнения, добавленные на конкретную дату разово. Из каталога — запись в log по id, как обычно;
+   не из библиотеки — id adhoc-<хэш названия>, название хранится в самой записи (entries[id].name).
+   Пока записи нет, добавленное живёт только в памяти страницы (в базу ничего не пишется). */
+const extras={},adhocNames={};let addOpen=false,addQ="";
+function adhocId(name){let h=5381;for(const c of normQ(name))h=((h*33)^c.charCodeAt(0))>>>0;return "adhoc-"+h.toString(36)}
+function extraList(date,planned){
+  const en=logs[date]?.entries||{},out=[];const seen=new Set();
+  const add=id=>{if(planned.has(id)||seen.has(id))return;seen.add(id);
+    const ex=exercises.find(e=>e.id===id);if(ex){out.push(ex);return}
+    const nm=en[id]?.name||adhocNames[id];if(nm)out.push({id,name:nm,adhoc:true})};
+  Object.keys(en).forEach(add);(extras[date]||[]).forEach(add);return out}
+function addExtra(id,name){
+  if(name)adhocNames[id]=name;const a=extras[curDate]=extras[curDate]||[];if(!a.includes(id))a.push(id);
+  addOpen=false;addQ="";renderToday();
+  const row=document.querySelector('.row[data-id="'+CSS.escape(id)+'"]');
+  if(row){row.scrollIntoView({block:"center",behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});row.querySelector("input,.donebtn")?.focus({preventScroll:true})}}
+function removeExtra(ex){
+  extras[curDate]=(extras[curDate]||[]).filter(x=>x!==ex.id);
+  if(logs[curDate]?.entries?.[ex.id])putEntry(ex.id,null);else renderToday()}
+function renderAddBox(shown){
+  const box=$("addbox");box.replaceChildren();
+  if(!db||!canWrite)return;
+  if(!addOpen){box.append(el("button",{class:"btn",type:"button",text:"+ Упражнение вне плана",title:"Разово добавить на эту дату упражнение из каталога или своё",onclick:()=>{addOpen=true;renderToday();$("addq")?.focus()}}));return}
+  const q=el("input",{type:"search",id:"addq",placeholder:"Название из каталога или своё упражнение…",autocomplete:"off","aria-label":"Найти упражнение в каталоге или ввести своё",value:addQ});
+  const pick=el("div",{class:"pick"});
+  const fill=()=>{
+    pick.replaceChildren();addQ=q.value;const t=q.value.trim().replace(/\s+/g," "),words=normQ(t).split(" ").filter(Boolean);
+    const cand=exercises.filter(e=>!shown.has(e.id)&&words.every(w=>normQ([e.name,e.block,e.target].join(" ")).includes(w)))
+      .sort((a,b)=>(a.active===false)-(b.active===false)||String(a.name).localeCompare(String(b.name),"ru"));
+    for(const e of cand.slice(0,40))pick.append(el("button",{type:"button",onclick:()=>addExtra(e.id)},e.name,el("small",{text:[e.block,daysLabel(daysOf(e)),e.active===false?"выключено":""].filter(Boolean).join(" · ")})));
+    if(t&&!exercises.some(e=>normQ(e.name)===normQ(t)))pick.append(el("button",{type:"button",class:"custom",onclick:()=>addExtra(adhocId(t),t)},"＋ «"+t+"» — не из библиотеки",el("small",{text:"запишется только в журнал этой даты, в каталог не попадёт"})));
+    if(!pick.children.length)pick.append(el("div",{class:"empty",text:"Весь каталог уже в списке. Впиши название своего упражнения."}))};
+  q.addEventListener("input",fill);
+  q.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();pick.querySelector("button")?.click()}else if(e.key==="Escape"){addOpen=false;addQ="";renderToday()}});
+  fill();
+  box.append(el("div",{class:"addpanel"},q,pick,el("div",{class:"acts"},el("button",{class:"btn",type:"button",text:"Отмена",onclick:()=>{addOpen=false;addQ="";renderToday()}}))));
 }
 const openTech=new Set();
 /* поле числа со стрелками: ▲▼ — шаг 1 (пустое поле берёт значение прошлого раза, иначе 1 / 0);
@@ -376,7 +433,7 @@ const perOpen=new Set(), perDraft={}; /* ввод по подходам: отк�
 const pending={};let writing=Promise.resolve();
 function putEntry(exId,val,redraw=true){
   const cur=structuredClone(logs[curDate]||{date:curDate,entries:{}});cur.entries=cur.entries||{};
-  if(val)cur.entries[exId]=val;else delete cur.entries[exId];
+  if(val){const nm=!exercises.some(e=>e.id===exId)&&(adhocNames[exId]||logs[curDate]?.entries?.[exId]?.name);cur.entries[exId]=nm?{...val,name:nm}:val}else delete cur.entries[exId];
   logs[curDate]=cur;pending[curDate]=cur;if(redraw)renderToday();scheduleFlush();
 }
 /* закрыл приложение или ушёл со вкладки — сохранить сразу, не ждать паузы */
@@ -591,7 +648,7 @@ render();
   assets=await C.use("assets");
   $("sub").textContent="Подходы × повторы по дням. Записи сохраняются сразу.";
   db.collection("exercises").onSnapshot(s=>{exercises=s.docs.map(d=>({id:d.id,...d.data()}));if(document.activeElement?.closest?.(".cat-row")&&curTab==="catalog")return;render()},e=>setStatus("Каталог не загрузился ("+e.code+")"));
-  db.collection("log").onSnapshot(s=>{const n={};s.docs.forEach(d=>{const k=toISOkey(d.id);if(!k)return;if(n[k]&&d.id===k)return;const v=d.data();if(v)n[k]=v});for(const d of Object.keys(pending))n[d]=pending[d];logs=n;if(document.activeElement?.closest?.(".entry,.perset"))return;render()},e=>setStatus("Журнал не загрузился ("+e.code+")"));
+  db.collection("log").onSnapshot(s=>{const n={};s.docs.forEach(d=>{const k=toISOkey(d.id);if(!k)return;if(n[k]&&d.id===k)return;const v=d.data();if(v)n[k]=v});for(const d of Object.keys(pending))n[d]=pending[d];logs=n;if(document.activeElement?.closest?.(".entry,.perset,.addpanel"))return;render()},e=>setStatus("Журнал не загрузился ("+e.code+")"));
 })();
 </script>
 
