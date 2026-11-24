@@ -157,6 +157,7 @@ dialog .cap{padding:10px 14px;display:flex;gap:10px;align-items:center;font-weig
 <header>
   <h1>Силовой дневник</h1>
   <p class="sub" id="sub">Подходы × повторы по дням. Подключаюсь к базе…</p>
+  <button class="btn" id="exportjson" type="button" style="margin-top:6px;font-size:12px;padding:3px 9px">Экспорт JSON</button>
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="t-today" aria-selected="true">Тренировка</button>
     <button class="tab" role="tab" id="t-progress" aria-selected="false">Прогресс</button>
@@ -649,6 +650,33 @@ render();
   $("sub").textContent="Подходы × повторы по дням. Записи сохраняются сразу.";
   db.collection("exercises").onSnapshot(s=>{exercises=s.docs.map(d=>({id:d.id,...d.data()}));if(document.activeElement?.closest?.(".cat-row")&&curTab==="catalog")return;render()},e=>setStatus("Каталог не загрузился ("+e.code+")"));
   db.collection("log").onSnapshot(s=>{const n={};s.docs.forEach(d=>{const k=toISOkey(d.id);if(!k)return;if(n[k]&&d.id===k)return;const v=d.data();if(v)n[k]=v});for(const d of Object.keys(pending))n[d]=pending[d];logs=n;if(document.activeElement?.closest?.(".entry,.perset,.addpanel"))return;render()},e=>setStatus("Журнал не загрузился ("+e.code+")"));
+})();
+
+/* ---------- экспорт JSON (побайтная выгрузка базы: файл + буфер обмена) ---------- */
+(function(){
+const b=document.getElementById("exportjson");if(!b)return;
+const COLS=["exercises", "log"],PFX="strength-diary",label=b.textContent;
+const flash=t=>{b.textContent=t;setTimeout(()=>{b.textContent=label;b.disabled=false},4000)};
+b.addEventListener("click",async()=>{
+  b.disabled=true;b.textContent="Читаю базу…";
+  try{
+    const db=await window.claude?.use?.("db");if(!db)throw new Error("база недоступна");
+    const out={exportedAt:new Date().toISOString(),collections:{}};let n=0;
+    for(const c of COLS){
+      const col=db.collection(c);
+      const snap=await new Promise((res,rej)=>{
+        if(typeof col.get==="function"){col.get().then(res,rej);return}
+        let un=null;un=col.onSnapshot(s=>{try{un&&un()}catch(e){}res(s)},rej)});
+      const docs=snap.docs.map(d=>({id:d.id,data:d.data()})).sort((x,y)=>x.id<y.id?-1:x.id>y.id?1:0);
+      out.collections[c]=docs;n+=docs.length}
+    const txt=JSON.stringify(out,null,1);
+    const name=PFX+"-"+new Date().toISOString().slice(0,10)+".json";
+    let ok=[];
+    try{const dl=await window.claude?.use?.("downloads");if(dl){await dl.save({filename:name,data:txt});ok.push("файл")}}catch(e){}
+    try{await navigator.clipboard.writeText(txt);ok.push("буфер")}catch(e){}
+    flash(ok.length?"Готово: "+n+" док. ("+ok.join(" + ")+")":"Не удалось сохранить");
+  }catch(e){flash("Ошибка: "+(e&&(e.message||e.code)||e))}
+});
 })();
 </script>
 

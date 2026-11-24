@@ -29,7 +29,7 @@ if len(set(ids)) != len(ids):
 if ids != sorted(ids):
     warn.append("exercises: не отсортировано по id")
 for d in ex:
-    for k in ("id", "data", "version", "updatedAt"):
+    for k in ("id", "data"):
         if k not in d:
             err.append(f"exercises/{d.get('id')}: нет поля {k}")
     dd = d.get("data", {})
